@@ -114,7 +114,10 @@ def local_image(title, current=''):
             return url
     cur = str(current).strip()
     if cur.startswith('/static/') or cur.startswith('static/'):
-        return '/' + cur.lstrip('/')
+        rel = '/' + cur.lstrip('/')
+        # gamitin lang kung talagang nandoon ang file; kung wala, Wikipedia lookup ang gagana
+        if os.path.isfile(os.path.join(BASE_DIR, urllib.parse.unquote(rel).lstrip('/'))):
+            return rel
     return ''
 
 df['image_url'] = [local_image(t, c) for t, c in zip(df['title'], df['image_url'])]
