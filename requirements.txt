@@ -1,6 +1,0 @@
-Flask
-Flask-SQLAlchemy
-pandas
-python-dotenv
-google-genai
-gunicorn
