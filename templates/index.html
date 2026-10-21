@@ -127,7 +127,7 @@
         .meal-slot:last-child { margin-bottom: 0; }
         .meal-slot:hover { border-color: var(--primary); background: var(--primary-light); transform: translateY(-1px); }
         .meal-slot.filled { border: 1.5px solid #fed7aa; background: linear-gradient(135deg, #fff, #fff7ed); }
-        .meal-slot.filled .slot-value { padding-right: 22px; }
+        .meal-slot.filled .slot-value { padding-right: 52px; }
         .slot-label { font-size: .64rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; gap: 6px; }
         .slot-label i { color: var(--primary); font-size: .7rem; }
         .slot-value { font-size: .85rem; font-weight: 700; color: var(--ink); margin-top: 3px; word-break: break-word; }
@@ -138,6 +138,12 @@
             display: grid; place-items: center; transition: .2s;
         }
         .slot-del:hover { background: #ef4444; color: #fff; transform: scale(1.1); }
+        .slot-edit {
+            position: absolute; top: 6px; right: 32px; width: 22px; height: 22px; border-radius: 50%;
+            border: none; background: #ffedd5; color: #c2410c; font-size: .65rem; cursor: pointer;
+            display: grid; place-items: center; transition: .2s;
+        }
+        .slot-edit:hover { background: var(--primary); color: #fff; transform: scale(1.1); }
         .btn-danger-soft {
             margin-left: auto; background: #fff; color: #b91c1c; border: 1.5px solid #fecaca; padding: .45rem 1rem;
             border-radius: 30px; font-weight: 700; font-size: .8rem; cursor: pointer; transition: .2s;
@@ -181,6 +187,12 @@
         .recipe-cta { margin-top: auto; padding-top: 12px; color: var(--primary-dark); font-size: .82rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
         .recipe-card:hover .recipe-cta i { transform: translateX(4px); }
         .recipe-cta i { transition: .2s; }
+        .btn-add-cal {
+            margin-top: 12px; width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff;
+            border: none; padding: 9px; border-radius: 12px; font-weight: 800; font-size: .82rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px; transition: .2s;
+        }
+        .btn-add-cal:hover { transform: translateY(-2px); }
 
         .empty-state { grid-column: 1 / -1; text-align: center; padding: 3.5rem 1rem; color: var(--text-muted); }
         .empty-state i { font-size: 2.6rem; color: #fdba74; margin-bottom: 12px; display: block; }
@@ -332,7 +344,6 @@
                 <button id="lang-tl" onclick="setLang('tl')">TL</button>
                 <button id="lang-en" onclick="setLang('en')">EN</button>
             </div>
-            <button class="btn-nav" onclick="openTranslator()"><i class="fa-solid fa-language"></i> <span data-i18n="nav_translator"></span></button>
             <a href="/logout" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="logout"></span></a>
         </div>
     </nav>
@@ -412,6 +423,7 @@
                 <h4><i class="fa-solid fa-kitchen-set"></i> <span data-i18n="instructions"></span></h4>
                 <p id="modalInstructions"></p>
             </div>
+            <button class="btn-primary" id="modalAddBtn"><i class="fa-regular fa-calendar-plus"></i> <span data-i18n="add_cal"></span></button>
         </div>
     </div>
 
@@ -435,27 +447,17 @@
         </div>
     </div>
 
-    <!-- TRANSLATOR MODAL -->
-    <div class="modal-overlay" id="translatorModal" onclick="if(event.target===this) closeModal('translatorModal')">
-        <div class="modal-card">
-            <div class="close-modal" onclick="closeModal('translatorModal')"><i class="fa-solid fa-xmark"></i></div>
-            <h3 class="selector-title" data-i18n="tr_title"></h3>
-            <p class="selector-sub">English &harr; Tagalog</p>
-
-            <div class="lang-bar">
-                <span class="lang-pill" id="langFrom">English</span>
-                <button class="swap-btn" onclick="swapLang()" aria-label="Swap"><i class="fa-solid fa-right-left"></i></button>
-                <span class="lang-pill" id="langTo">Tagalog</span>
-            </div>
-
-            <textarea class="form-input tr-area" id="trInput" maxlength="1000" data-i18n-ph="tr_ph"
-                      onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey)) translateText()"></textarea>
-            <button class="btn-primary" id="trBtn" onclick="translateText()"></button>
-
-            <div class="tr-result" id="trResult" style="display:none;">
-                <div class="tr-out" id="trOut"></div>
-                <button class="btn-copy" id="trCopy" onclick="copyTranslation()"></button>
-            </div>
+    <!-- ADD TO CALENDAR MODAL -->
+    <div class="modal-overlay" id="addCalModal" onclick="if(event.target===this) closeModal('addCalModal')">
+        <div class="modal-card" style="max-width:420px">
+            <div class="close-modal" onclick="closeModal('addCalModal')"><i class="fa-solid fa-xmark"></i></div>
+            <h3 class="selector-title" data-i18n="add_cal"></h3>
+            <p class="selector-sub" id="acDish"></p>
+            <label class="field-label" data-i18n="ac_day"></label>
+            <select class="form-select" id="acDay"></select>
+            <label class="field-label" data-i18n="ac_meal"></label>
+            <select class="form-select" id="acMeal"></select>
+            <button class="btn-primary" onclick="confirmAddToCalendar()"><i class="fa-solid fa-floppy-disk"></i> <span data-i18n="sel_save"></span></button>
         </div>
     </div>
 
@@ -470,7 +472,9 @@
         let planData = {};
         let activeDay = '', activeMeal = '';
         let currentRecipes = [];
-        let modalIdx = -1;
+        let modalRecipe = null;
+        let allTitles = [];
+        let chatHistory = [];
 
         // 0 = Lunes ... 6 = Linggo
         const todayIndex = (new Date().getDay() + 6) % 7;
@@ -504,6 +508,8 @@
                 tr_title: 'Tagasalin', tr_ph: 'I-type o i-paste ang teksto dito...',
                 tr_btn: 'Isalin', tr_loading: 'Isinasalin...', tr_copy: 'Kopyahin',
                 tr_err: 'May error sa pagsasalin.',
+                add_cal: 'Idagdag sa Kalendaryo', ac_day: 'Araw', ac_meal: 'Oras ng Pagkain',
+                toast_added: 'Nailagay na sa {day} ({meal}): {dish}',
                 toast_plan: 'Nailagay na sa Kalendaryo ang ulam para sa isang linggo!',
                 toast_savefail: 'Hindi na-save ang pagbabago. Subukan ulit.',
                 toast_empty: 'Walang laman ang kalendaryo.',
@@ -538,6 +544,8 @@
                 tr_title: 'Translator', tr_ph: 'Type or paste text here...',
                 tr_btn: 'Translate', tr_loading: 'Translating...', tr_copy: 'Copy',
                 tr_err: 'Translation error.',
+                add_cal: 'Add to Calendar', ac_day: 'Day', ac_meal: 'Mealtime',
+                toast_added: 'Added to {day} ({meal}): {dish}',
                 toast_plan: 'Your one-week meal plan is now in the calendar!',
                 toast_savefail: "Couldn't save the change. Please try again.",
                 toast_empty: 'The calendar is already empty.',
@@ -566,8 +574,6 @@
             document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
             document.getElementById('lang-tl').classList.toggle('active', lang === 'tl');
             document.getElementById('lang-en').classList.toggle('active', lang === 'en');
-            document.getElementById('trBtn').innerHTML = '<i class="fa-solid fa-language"></i> ' + t('tr_btn');
-            document.getElementById('trCopy').innerHTML = '<i class="fa-regular fa-copy"></i> ' + t('tr_copy');
         }
 
         function setLang(l) {
@@ -577,7 +583,7 @@
             applyStaticLang();
             renderCalendar();
             renderRecipes(currentRecipes);
-            if (document.getElementById('recipeModal').style.display === 'flex' && modalIdx >= 0) openRecipeModal(modalIdx);
+            if (document.getElementById('recipeModal').style.display === 'flex' && modalRecipe) showRecipe(modalRecipe);
         }
 
         // ---------------------------------------------------------------
@@ -600,8 +606,8 @@
             const src = texts.map(s => String(s == null ? '' : s).trim());
             const miss = [];
             src.forEach(s => { if (s && trGet(target, s) === null && !miss.includes(s)) miss.push(s); });
-            for (let k = 0; k < miss.length; k += 40) {
-                const chunk = miss.slice(k, k + 40);
+            for (let k = 0; k < miss.length; k += 20) {
+                const chunk = miss.slice(k, k + 20);
                 let ok = false;
                 try {
                     const r = await fetch('/api/translate_batch', {
@@ -633,15 +639,23 @@
             applyStaticLang();
             renderRecipes(initialRecipes);
             loadCalendarPlan();
+            fetch('/api/titles').then(r => r.json()).then(d => {
+                allTitles = d.titles || [];
+                populateDropdown(currentRecipes);
+            }).catch(() => {});
         });
 
         function populateDropdown(recipes) {
             const dropdown = document.getElementById('recipeDropdown');
+            const label = {};
+            recipes.forEach(r => { label[r.title] = dispTitle(r); });
+            const list = allTitles.length ? allTitles : recipes.map(r => r.title);
             dropdown.innerHTML = '<option value="">' + esc(t('sel_dropdown')) + '</option>' +
-                recipes.map(r => `<option value="${esc(dispTitle(r))}">${esc(dispTitle(r))}</option>`).join('');
+                list.map(x => `<option value="${esc(x)}">${esc(label[x] || x)}</option>`).join('');
         }
 
         function renderRecipes(recipes) {
+            imgQueue = [];
             currentRecipes = recipes;
             const grid = document.getElementById('recipeGrid');
             document.getElementById('recipeCount').textContent = recipes.length ? t('count', { n: recipes.length }) : '';
@@ -669,15 +683,17 @@
                         <span class="recipe-tag" id="cat-${i}">${esc(dispCat(r))}</span>
                         <div class="recipe-title" id="title-${i}">${esc(dispTitle(r))}</div>
                         <div class="recipe-cta">${esc(t('view_recipe'))} <i class="fa-solid fa-arrow-right"></i></div>
+                        <button class="btn-add-cal" onclick="event.stopPropagation(); openAddToCalendar(currentRecipes[${i}].title)"><i class="fa-regular fa-calendar-plus"></i> ${esc(t('add_cal'))}</button>
                     </div>
                 </div>
             `).join('');
-            recipes.forEach((r, i) => loadDishImage(r, i));
+            recipes.forEach((r, i) => queueImage(() => loadDishImage(r, i)));
             translateRecipes(recipes);
         }
 
         async function translateRecipes(recipes) {
             const L = lang;
+            if (L !== 'en') return; // Tagalog ang orihinal na nilalaman, kaya English lang ang isinasalin
             const items = [];
             recipes.forEach(r => { items.push(r.title); items.push(r.category || ''); });
             const out = await trBatch(items, L);
@@ -707,6 +723,17 @@
             if (ph) ph.style.display = 'flex';
         }
 
+        // Dalawa lang na larawan ang sabay na hinahanap, para hindi ma-rate-limit ang Wikipedia
+        let imgQueue = [], imgActive = 0;
+        function queueImage(job) { imgQueue.push(job); pumpImages(); }
+        function pumpImages() {
+            while (imgActive < 2 && imgQueue.length) {
+                const job = imgQueue.shift();
+                imgActive++;
+                Promise.resolve(job()).catch(() => {}).finally(() => { imgActive--; pumpImages(); });
+            }
+        }
+
         async function loadDishImage(r, i) {
             if (r.image_url) return;
             const key = 'dimg:' + r.title;
@@ -726,14 +753,17 @@
             }
         }
 
-        async function openRecipeModal(i) {
-            const r = currentRecipes[i];
+        function openRecipeModal(i) { showRecipe(currentRecipes[i]); }
+
+        async function showRecipe(r) {
             if (!r) return;
-            modalIdx = i;
+            modalRecipe = r;
             const L = lang;
+            const fix = s => String(s || '').replace(/\\n/g, '\n');
             document.getElementById('modalTitle').innerText = dispTitle(r);
             document.getElementById('modalIngredients').innerText = r.ingredients || t('no_ingredients');
-            document.getElementById('modalInstructions').innerText = r.instructions || t('no_instructions');
+            document.getElementById('modalInstructions').innerText = fix(r.instructions) || t('no_instructions');
+            document.getElementById('modalAddBtn').onclick = () => openAddToCalendar(r.title);
             const mImg = document.getElementById('modalImage');
             if (r.image_url) {
                 mImg.style.display = 'block';
@@ -741,15 +771,39 @@
             } else {
                 mImg.style.display = 'none';
                 mImg.removeAttribute('src');
+                fetch('/api/dish_image?title=' + encodeURIComponent(r.title)).then(x => x.json()).then(d => {
+                    if (d.url) { r.image_url = d.url; if (modalRecipe === r) { mImg.src = d.url; mImg.style.display = 'block'; } }
+                }).catch(() => {});
             }
             document.getElementById('recipeModal').style.display = 'flex';
 
-            // isalin sa napiling wika
-            const out = await trBatch([r.title, r.ingredients, r.instructions], L);
-            if (L !== lang || modalIdx !== i) return;
+            // isalin sa English kung English ang napili
+            if (L !== 'en') return;
+            const out = await trBatch([r.title, r.ingredients, fix(r.instructions)], L);
+            if (L !== lang || modalRecipe !== r) return;
             if (out[0]) document.getElementById('modalTitle').innerText = out[0];
             if (out[1]) document.getElementById('modalIngredients').innerText = out[1];
             if (out[2]) document.getElementById('modalInstructions').innerText = out[2];
+        }
+
+        // ---------- ADD RECIPE TO CALENDAR ----------
+        let acRaw = '';
+        function openAddToCalendar(title) {
+            acRaw = title;
+            document.getElementById('acDish').innerText = title;
+            document.getElementById('acDay').innerHTML = days.map((d, i) => `<option value="${d}" ${i === todayIndex ? 'selected' : ''}>${esc(dayLabel(d))}</option>`).join('');
+            document.getElementById('acMeal').innerHTML = meals.map((m, i) => `<option value="${m}" ${i === 1 ? 'selected' : ''}>${esc(mealLabel(m))}</option>`).join('');
+            document.getElementById('addCalModal').style.display = 'flex';
+        }
+
+        async function confirmAddToCalendar() {
+            const day = document.getElementById('acDay').value, meal = document.getElementById('acMeal').value;
+            if (!planData[day]) planData[day] = {};
+            planData[day][meal] = acRaw;
+            renderCalendar();
+            closeModal('addCalModal');
+            showToast(t('toast_added', { day: dayLabel(day), meal: mealLabel(meal), dish: acRaw }));
+            await savePlan();
         }
 
         function closeModal(id) {
@@ -776,8 +830,9 @@
                         const raw = (planData[day] && planData[day][meal]) ? planData[day][meal] : '-';
                         const filled = raw !== '-';
                         return `
-                            <div class="meal-slot ${filled ? 'filled' : ''}" onclick="openMealSelector('${day}', '${meal}')">
-                                ${filled ? `<button class="slot-del" title="${esc(t('del'))}" aria-label="${esc(t('del'))}" onclick="event.stopPropagation(); deleteSlot('${day}', '${meal}')"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                            <div class="meal-slot ${filled ? 'filled' : ''}" onclick="slotClick('${day}', '${meal}')">
+                                ${filled ? `<button class="slot-del" title="${esc(t('del'))}" aria-label="${esc(t('del'))}" onclick="event.stopPropagation(); deleteSlot('${day}', '${meal}')"><i class="fa-solid fa-xmark"></i></button>
+                                <button class="slot-edit" aria-label="Edit" onclick="event.stopPropagation(); openMealSelector('${day}', '${meal}')"><i class="fa-solid fa-pen"></i></button>` : ''}
                                 <div class="slot-label"><i class="fa-solid ${mealIcons[meal]}"></i> ${esc(mealLabel(meal))}</div>
                                 <div class="slot-value ${filled ? '' : 'empty'}" ${filled ? `data-raw="${esc(raw)}"` : ''}>${filled ? esc(raw) : esc(t('add'))}</div>
                             </div>
@@ -788,8 +843,21 @@
             translateCalendar();
         }
 
+        // Pindutin ang ulam sa kalendaryo para makita ang sangkap at paraan ng pagluluto
+        async function slotClick(day, meal) {
+            const raw = planData[day] && planData[day][meal];
+            if (!raw || raw === '-') return openMealSelector(day, meal);
+            try {
+                const r = await fetch('/api/recipe_lookup?title=' + encodeURIComponent(raw));
+                const d = await r.json();
+                if (d.recipe) return showRecipe(d.recipe);
+            } catch (e) {}
+            openMealSelector(day, meal); // sariling ulam na wala sa cookbook
+        }
+
         async function translateCalendar() {
             const L = lang;
+            if (L !== 'en') return;
             const els = Array.from(document.querySelectorAll('.slot-value[data-raw]'));
             if (!els.length) return;
             const raws = Array.from(new Set(els.map(e => e.dataset.raw)));
@@ -886,64 +954,6 @@
             if (e.key === 'Enter') sendChatMessage();
         }
 
-        // ---------- TRANSLATOR BOX ----------
-        let trDir = 'en-tl';
-
-        function openTranslator() {
-            document.getElementById('translatorModal').style.display = 'flex';
-            document.getElementById('trInput').focus();
-        }
-
-        function swapLang() {
-            trDir = trDir === 'en-tl' ? 'tl-en' : 'en-tl';
-            document.getElementById('langFrom').textContent = trDir === 'en-tl' ? 'English' : 'Tagalog';
-            document.getElementById('langTo').textContent = trDir === 'en-tl' ? 'Tagalog' : 'English';
-            const out = document.getElementById('trOut').textContent;
-            const res = document.getElementById('trResult');
-            if (res.style.display !== 'none' && !res.classList.contains('error') && out) {
-                document.getElementById('trInput').value = out;
-            }
-            res.style.display = 'none';
-        }
-
-        async function translateText() {
-            const input = document.getElementById('trInput');
-            const text = input.value.trim();
-            if (!text) return;
-            const btn = document.getElementById('trBtn');
-            const res = document.getElementById('trResult');
-            const out = document.getElementById('trOut');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + t('tr_loading');
-            try {
-                const r = await fetch('/api/translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text, direction: trDir })
-                });
-                const data = await r.json();
-                res.classList.toggle('error', !data.ok);
-                out.textContent = data.ok ? data.translation : (data.error || t('tr_err'));
-                document.getElementById('trCopy').style.display = data.ok ? 'inline-block' : 'none';
-            } catch (e) {
-                res.classList.add('error');
-                out.textContent = t('err_conn');
-                document.getElementById('trCopy').style.display = 'none';
-            }
-            res.style.display = 'block';
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-language"></i> ' + t('tr_btn');
-        }
-
-        async function copyTranslation() {
-            try {
-                await navigator.clipboard.writeText(document.getElementById('trOut').textContent);
-                showToast(t('toast_copied'));
-            } catch (e) {
-                showToast(t('toast_copyfail'));
-            }
-        }
-
         // ---------- TOAST + AI PLAN ----------
         function showToast(msg) {
             let el = document.getElementById('toast');
@@ -960,7 +970,7 @@
             showToast._t = setTimeout(() => el.classList.remove('show'), 3500);
         }
 
-        // Kapag nagbigay ang AI ng pang-isang-linggong plano, ilagay agad sa kalendaryo at i-save.
+        // Kapag nagbigay ang AI ng plano, ilagay agad sa kalendaryo at i-save.
         async function applyAiPlan(plan) {
             for (const day of Object.keys(plan)) {
                 if (!days.includes(day)) continue;
@@ -999,12 +1009,15 @@
             chatBody.insertAdjacentHTML('beforeend', `<div class="chat-msg ai" id="typingMsg"><div class="typing"><span></span><span></span><span></span></div></div>`);
             chatBody.scrollTop = chatBody.scrollHeight;
 
+            const hist = chatHistory.slice(-6);
+            chatHistory.push({ role: 'user', text: txt });
+
             let reply;
             try {
                 const res = await fetch('/ask_ai', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: txt, lang: lang })
+                    body: JSON.stringify({ query: txt, lang: lang, history: hist })
                 });
                 const data = await res.json();
                 reply = data.reply;
@@ -1012,6 +1025,7 @@
             } catch (e) {
                 reply = t('err_conn');
             }
+            chatHistory.push({ role: 'ai', text: reply });
             const typing = document.getElementById('typingMsg');
             if (typing) typing.remove();
             chatBody.insertAdjacentHTML('beforeend', `<div class="chat-msg ai">${formatReply(reply)}</div>`);
