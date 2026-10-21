@@ -22,7 +22,7 @@ from google import genai
 from auth import auth_bp, init_auth, login_required, current_user
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# override=True: ang .env ang masusunod, kahit may lumang GEMINI_API_KEY sa system environment
+# override=True: ang .env ang masusunod sa local
 load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
 
 app = Flask(__name__)
@@ -46,8 +46,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = _db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-# SSL: gamitin ang certifi (updated na certificates) para hindi bumagsak sa
-# "CERTIFICATE_VERIFY_FAILED" ang mga online request.
+# SSL Context configuration
 try:
     import certifi
     _SSL_CTX = ssl.create_default_context(cafile=certifi.where())
@@ -99,15 +98,9 @@ df = df.fillna('').reset_index(drop=True)
 _ids = pd.to_numeric(df['id'], errors='coerce')
 df['id'] = _ids.where(_ids.notna(), pd.Series(range(1, len(df) + 1))).astype(int)
 
-# Manual na larawan (opsyonal). Ilagay ang sarili mong litrato sa static/images/
-# tapos i-map dito, halimbawa:
-#   "Adobong Manok": "/static/images/adobo.jpg",
-MANUAL_IMAGES = {
-}
+MANUAL_IMAGES = {}
 
 def local_image(title, current=''):
-    """Priority: manual map > lokal na larawan sa CSV (/static/...). Kung wala, blangko
-    (kukunin ng Wikipedia lookup, o placeholder kung wala talaga)."""
     t = str(title).lower()
     for key, url in MANUAL_IMAGES.items():
         if key.lower() in t:
@@ -115,7 +108,6 @@ def local_image(title, current=''):
     cur = str(current).strip()
     if cur.startswith('/static/') or cur.startswith('static/'):
         rel = '/' + cur.lstrip('/')
-        # gamitin lang kung talagang nandoon ang file; kung wala, Wikipedia lookup ang gagana
         if os.path.isfile(os.path.join(BASE_DIR, urllib.parse.unquote(rel).lstrip('/'))):
             return rel
     return ''
@@ -123,7 +115,7 @@ def local_image(title, current=''):
 df['image_url'] = [local_image(t, c) for t, c in zip(df['title'], df['image_url'])]
 
 # ---------------------------------------------------------------------------
-# DISH IMAGE LOOKUP (Wikipedia, naka-cache)
+# DISH IMAGE LOOKUP (Wikipedia Cache)
 # ---------------------------------------------------------------------------
 IMG_CACHE_FILE = os.path.join(BASE_DIR, 'image_cache.json')
 _img_lock = threading.Lock()
@@ -139,8 +131,6 @@ def _tokens(s):
     return [w for w in re.findall(r'[a-zñ]+', str(s).lower()) if len(w) >= 4 and w not in _STOP]
 
 def _relevant(dish, page_title):
-    """Tama lang ang larawan kung may pagkakahawig ang pangalan ng ulam at ng Wikipedia page
-    (hal. 'Adobong Manok' ~ 'Adobo', 'Tinolang Manok' ~ 'Tinola')."""
     for a in _tokens(dish):
         for b in _tokens(page_title):
             if a.startswith(b) or b.startswith(a):
@@ -155,8 +145,6 @@ def _wiki_get(url):
     except (ssl.SSLError, urllib.error.URLError) as e:
         if 'CERTIFICATE_VERIFY_FAILED' not in str(e):
             raise
-        # Sira ang certificate store ng makina mo (hal. antivirus o lumang Windows certs).
-        # Public na data lang ito mula sa Wikipedia kaya dito lang ito pinapayagan.
         with urllib.request.urlopen(req, timeout=8, context=ssl._create_unverified_context()) as r:
             return json.loads(r.read().decode('utf-8'))
 
@@ -191,7 +179,7 @@ def wiki_image(title):
         if url:
             break
 
-    if url or not had_error:  # huwag i-cache ang pagkabigo dahil sa network
+    if url or not had_error:
         with _img_lock:
             IMG_CACHE[key] = url
             try:
@@ -223,11 +211,10 @@ def records(sub):
     return [BY_ID[i] for i in sub['id'].tolist() if i in BY_ID]
 
 # ---------------------------------------------------------------------------
-# GEMINI API (REST, x-goog-api-key lang; sumusuporta sa bagong "AQ." na key)
+# GEMINI API CONFIGURATION
 # ---------------------------------------------------------------------------
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
-# Gagamitin lang kung hindi makuha ang listahan ng model mula sa Google
-FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-flash-latest']
+FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-flash-latest']
 _model_cache = {'models': None, 'at': 0.0}
 LAST_AI_ERROR = {'status': None, 'message': ''}
 
@@ -258,44 +245,25 @@ def _set_ai_error(e):
     LAST_AI_ERROR.update(status=status, message=str(msg)[:300])
     print("Gemini error:", status, msg)
 
-_MODEL_RE = re.compile(r'^gemini-(\d+(?:\.\d+)?)-flash(-lite)?(-preview[\w-]*)?$')
-
-def list_gen_models(key):
-    """Kunin mula sa Google ang mga text model na gumagana sa key mo (pinakabago muna)."""
-    now = time.time()
-    if _model_cache['models'] and now - _model_cache['at'] < 3600:
-        return _model_cache['models']
-    found = []
-    try:
-        data = _gemini_request('/models?pageSize=200', key, timeout=15)
-        for m in data.get('models', []):
-            name = str(m.get('name', '')).replace('models/', '')
-            if 'generateContent' not in m.get('supportedGenerationMethods', []):
-                continue
-            mt = _MODEL_RE.match(name)
-            if mt:
-                found.append((-float(mt.group(1)), bool(mt.group(2)), bool(mt.group(3)), len(name), name))
-    except Exception as e:
-        _set_ai_error(e)
-        return []
-    found.sort()
-    names = [f[-1] for f in found][:4]
-    if names:
-        _model_cache.update(models=names, at=now)
-    return names
-
 def gemini_text(prompt, key):
-    """Ibabalik ang sagot ng Gemini, o None kung bumagsak (nasa LAST_AI_ERROR ang dahilan)."""
-    LAST_AI_ERROR.update(status=None, message='')
-    candidates = list(list_gen_models(key))
-    for fm in FALLBACK_MODELS:
-        if fm not in candidates:
-            candidates.append(fm)
+    LAST_AI_ERROR.update(status=status if 'status' in locals() else None, message='')
+    
+    # Subukan muna gamitin ang opisyal na google-genai SDK kung suportado ang bagong key format
+    try:
+        ai_client = genai.Client(api_key=key)
+        for model in FALLBACK_MODELS:
+            try:
+                resp = ai_client.models.generate_content(model=model, contents=prompt)
+                if resp and resp.text:
+                    LAST_AI_ERROR.update(status=None, message='')
+                    return resp.text
+            except Exception as e:
+                print(f"SDK model {model} error:", e)
+    except Exception as e:
+        print("SDK Client Init Error:", e)
 
-    if LAST_AI_ERROR['status'] in (401, 403):  # mali ang key, walang saysay ang ibang model
-        return None
-
-    for model in candidates:
+    # Fallback sa REST API kung sakaling kailanganin
+    for model in FALLBACK_MODELS:
         try:
             data = _gemini_request(f"/models/{model}:generateContent", key,
                                    {"contents": [{"parts": [{"text": prompt}]}]})
@@ -311,19 +279,6 @@ def gemini_text(prompt, key):
         except Exception as e:
             _set_ai_error(e)
 
-    # Huling subok: opisyal na SDK
-    try:
-        ai_client = genai.Client(api_key=key)
-        for model in candidates[:3]:
-            try:
-                resp = ai_client.models.generate_content(model=model, contents=prompt)
-                if resp and resp.text:
-                    LAST_AI_ERROR.update(status=None, message='')
-                    return resp.text
-            except Exception as e:
-                print("SDK error:", e)
-    except Exception as e:
-        print("SDK Error:", e)
     return None
 
 def ai_error_message(lang='tl'):
@@ -333,15 +288,11 @@ def ai_error_message(lang='tl'):
             return "Gemini rejected the API key (error %s). Create a new key in Google AI Studio, put it in .env as GEMINI_API_KEY, then restart the server." % s
         if s == 429:
             return "The Gemini quota is used up for now (error 429). Try again later or check the quota/billing in AI Studio."
-        if s == 404:
-            return "No working Gemini model was found (error 404). Please check /api/ai_status."
         return "Could not reach Gemini right now. %s" % m
     if s in (401, 403):
         return "Hindi tinanggap ng Gemini ang API key (error %s). Gumawa ng bagong key sa Google AI Studio, ilagay sa .env bilang GEMINI_API_KEY, tapos i-restart ang server." % s
     if s == 429:
         return "Naubos na ang quota ng Gemini sa ngayon (error 429). Subukan ulit mamaya o i-check ang quota/billing sa AI Studio."
-    if s == 404:
-        return "Walang nahanap na gumaganang Gemini model (error 404). Buksan ang /api/ai_status para makita ang detalye."
     return "Hindi maabot ang Gemini ngayon. %s" % m
 
 # ---------------------------------------------------------------------------
@@ -391,17 +342,16 @@ def build_plan_prompt(q, lang='tl'):
         "Ikaw ang KusinaAI chef sa Pilipinas. Gumawa ng meal plan para sa isang linggo ayon sa hiling na ito: "
         f"{q}\n\n"
         "Gumamit ng mga ulam na pang-Pilipino at iba-iba bawat araw. Hangga't maaari, piliin ang mga ulam "
-        f"mula sa listahang ito ng cookbook (puwede ring ibang kilalang ulam kung kulang): {titles}\n\n"
+        f"mula sa listahang ito ng cookbook: {titles}\n\n"
         'Ibalik LAMANG ang isang JSON object, walang ibang teksto at walang code fence, sa ganitong anyo: '
         '{"buod": "isang maikling pangungusap sa Filipino", "plan": {"Lunes": {"Almusal": "...", '
         '"Tanghalian": "...", "Hapunan": "..."}, "Martes": {...}, ... hanggang "Linggo"}}. '
         "Gamitin nang eksakto ang mga susi na Lunes, Martes, Miyerkules, Huwebes, Biyernes, Sabado, Linggo "
-        "at Almusal, Tanghalian, Hapunan. Pangalan lang ng ulam ang laman ng bawat slot."
-        + (" Isulat sa English ang 'buod' at ang mga pangalan ng ulam." if lang == 'en' else "")
+        "at Almusal, Tanghalian, Hapunan."
     )
 
 # ---------------------------------------------------------------------------
-# MAIN ROUTES, LOGOUT & AI CHAT
+# MAIN ROUTES & AI CHAT
 # ---------------------------------------------------------------------------
 @app.route('/')
 def home():
@@ -435,14 +385,11 @@ def api_dish_image():
 
 @app.get('/api/ai_status')
 def api_ai_status():
-    """Diagnostic: buksan sa browser (kailangang naka-login) para makita kung gumagana ang Gemini key."""
     if not current_user():
         return jsonify({'ok': False, 'error': 'Mag-login muna.'}), 401
     key = get_api_key()
     info = {'key_loaded': bool(key), 'key_starts_with': key[:3], 'key_length': len(key)}
     if key:
-        _model_cache.update(models=None, at=0.0)
-        info['models_found'] = list_gen_models(key)
         info['test_ok'] = bool(gemini_text("Sabihin mo lang: OK", key))
         info['last_error'] = dict(LAST_AI_ERROR)
     return jsonify(info)
@@ -453,16 +400,12 @@ def ask_ai():
     q = str(data.get('query', '')).strip()[:400]
     lang = 'en' if data.get('lang') == 'en' else 'tl'
     if not q:
-        return jsonify({'reply': 'Ask me something about cooking!' if lang == 'en'
-                        else 'Magtanong ka ng tungkol sa pagluluto!'})
+        return jsonify({'reply': 'Ask me something about cooking!' if lang == 'en' else 'Magtanong ka ng tungkol sa pagluluto!'})
 
     current_key = get_api_key()
     if not current_key:
-        return jsonify({'reply': 'No GEMINI_API_KEY found in the .env file.' if lang == 'en'
-                        else 'Walang nahanap na GEMINI_API_KEY sa .env file.'})
+        return jsonify({'reply': 'No GEMINI_API_KEY found in the .env file.' if lang == 'en' else 'Walang nahanap na GEMINI_API_KEY sa .env file.'})
 
-    # Kapag humingi ng pang-isang-linggong ulam: gumawa ng plano at ibalik para
-    # awtomatikong mailagay sa kalendaryo.
     if wants_week_plan(q):
         obj = extract_json(gemini_text(build_plan_prompt(q, lang), current_key))
         plan = clean_plan(obj) if obj else {}
@@ -475,16 +418,14 @@ def ask_ai():
                 if d in plan:
                     parts = ' • '.join(f"{m}: {plan[d][m]}" for m in MEALS if m in plan[d])
                     lines.append(f"**{d}** — {parts}")
-            lines.append("I've added this plan to your Calendar." if lang == 'en'
-                         else "Nailagay ko na ang planong ito sa Kalendaryo mo.")
+            lines.append("Nailagay ko na ang planong ito sa Kalendaryo mo.")
             return jsonify({'reply': '\n'.join(lines), 'plan': plan})
-        if LAST_AI_ERROR['status'] in (401, 403):
-            return jsonify({'reply': ai_error_message(lang)})
 
     if lang == 'en':
-        prompt = f"You are KusinaAI, a Filipino chef. Answer clearly, in detail, and completely in English: {q}"
+        prompt = f"You are KusinaAI, a Filipino chef. Answer clearly and completely in English: {q}"
     else:
-        prompt = f"Ikaw ang KusinaAI chef sa Pilipinas. Sagutin sa Filipino nang maayos, detalyado, at kumpleto ang tanong na ito: {q}"
+        prompt = f"Ikaw ang KusinaAI chef sa Pilipinas. Sagutin sa Filipino nang maayos at kumpleto ang tanong na ito: {q}"
+    
     text = gemini_text(prompt, current_key)
     if text:
         return jsonify({'reply': text})
@@ -501,19 +442,10 @@ def api_translate():
 
     key = get_api_key()
     if not key:
-        return jsonify({'ok': False, 'error': 'Walang nahanap na GEMINI_API_KEY sa .env file.'})
+        return jsonify({'ok': False, 'error': 'Walang nahanap na GEMINI_API_KEY.'})
 
-    if direction == 'tl-en':
-        src, dst = 'Tagalog (Filipino)', 'English'
-    else:
-        src, dst = 'English', 'Tagalog (Filipino)'
-
-    prompt = (
-        f"Isalin ang sumusunod na teksto mula {src} patungong {dst}. "
-        "Gawing natural at tama ang salin. "
-        "Ibalik LAMANG ang salin, walang paliwanag, panipi, o dagdag na komento.\n\n"
-        f"Teksto:\n{text}"
-    )
+    src, dst = ('Tagalog (Filipino)', 'English') if direction == 'tl-en' else ('English', 'Tagalog (Filipino)')
+    prompt = f"Isalin mula {src} patungong {dst}. Ibalik LAMANG ang salin nang walang paliwanag:\n\n{text}"
     out = gemini_text(prompt, key)
     if not out:
         return jsonify({'ok': False, 'error': ai_error_message('tl')})
@@ -521,7 +453,6 @@ def api_translate():
 
 @app.post('/api/translate_batch')
 def api_translate_batch():
-    """Isalin ang listahan ng teksto (pamagat ng resipe, sangkap, atbp.) sa 'en' o 'tl'."""
     data = request.get_json(silent=True) or {}
     texts = data.get('texts', [])
     target = 'en' if data.get('target') == 'en' else 'tl'
@@ -531,15 +462,10 @@ def api_translate_batch():
 
     key = get_api_key()
     if not key:
-        return jsonify({'ok': False, 'error': 'Walang nahanap na GEMINI_API_KEY sa .env file.'})
+        return jsonify({'ok': False, 'error': 'Walang nahanap na GEMINI_API_KEY.'})
 
     dst = 'English' if target == 'en' else 'Tagalog (Filipino)'
-    prompt = (
-        f"Isalin sa {dst} ang bawat teksto sa JSON array na ito. Panatilihin ang parehong bilang at pagkakasunod-sunod. "
-        f"Kung nasa {dst} na ang teksto, ibalik ito nang hindi binabago. Panatilihin ang mga bagong linya. "
-        "Ibalik LAMANG ang isang JSON array ng mga string, walang ibang teksto o code fence.\n\n"
-        + json.dumps(texts, ensure_ascii=False)
-    )
+    prompt = f"Isalin sa {dst} ang bawat teksto sa JSON array na ito. Panatilihin ang pagkakasunod-sunod. Ibalik LAMANG ang JSON array:\n\n" + json.dumps(texts, ensure_ascii=False)
     out = gemini_text(prompt, key)
     m = re.search(r'\[.*\]', out or '', re.S)
     try:
