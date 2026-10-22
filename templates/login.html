@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KusinaAI - Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #f97316;
+            --primary-dark: #ea580c;
+            --primary-deep: #c2410c;
+            --ink: #1c1917;
+            --muted: #78716c;
+            --line: #e7e5e4;
+            --cream: #fff8f1;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body {
+            min-height: 100vh; background: var(--cream); color: var(--ink);
+            display: grid; grid-template-columns: 1.05fr 1fr;
+        }
+
+        /* ---------- LANGUAGE SWITCH ---------- */
+        .lang-switch {
+            position: fixed; top: 18px; right: 18px; z-index: 50; display: flex; background: #fff;
+            border: 1.5px solid #fed7aa; border-radius: 30px; padding: 3px; box-shadow: 0 6px 18px rgba(0,0,0,.08);
+        }
+        .lang-switch button {
+            border: none; background: transparent; color: var(--muted); font-weight: 800; font-size: .78rem;
+            padding: 6px 13px; border-radius: 30px; cursor: pointer; transition: .2s;
+        }
+        .lang-switch button.active { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; box-shadow: 0 4px 10px rgba(249,115,22,.3); }
+
+        /* ---------- LEFT: BRAND PANEL ---------- */
+        .brand-panel {
+            position: relative; overflow: hidden; color: #fff;
+            background: linear-gradient(145deg, #f97316 0%, #ea580c 45%, #9a3412 100%);
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 3rem 3.5rem;
+        }
+        .brand-panel::before, .brand-panel::after {
+            content: ""; position: absolute; border-radius: 50%; pointer-events: none;
+        }
+        .brand-panel::before { width: 420px; height: 420px; right: -140px; top: -120px; background: rgba(255,255,255,.12); }
+        .brand-panel::after { width: 320px; height: 320px; left: -110px; bottom: -110px; background: rgba(0,0,0,.14); }
+        .brand-logo { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; font-size: 1.5rem; font-weight: 800; }
+        .brand-logo .mark {
+            width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,.2);
+            display: grid; place-items: center; backdrop-filter: blur(6px); font-size: 1.15rem;
+        }
+        .brand-copy { position: relative; z-index: 1; max-width: 460px; }
+        .brand-copy h1 {
+            font-family: 'Fraunces', serif; font-weight: 800; font-size: 3rem; line-height: 1.08;
+            letter-spacing: -.02em; margin-bottom: 1rem;
+        }
+        .brand-copy p { font-size: 1.05rem; color: rgba(255,255,255,.88); margin-bottom: 2rem; }
+        .features { list-style: none; display: grid; gap: .9rem; }
+        .features li { display: flex; align-items: center; gap: 14px; font-weight: 600; }
+        .features i {
+            width: 38px; height: 38px; border-radius: 12px; background: rgba(255,255,255,.18);
+            display: grid; place-items: center; font-size: .95rem; flex-shrink: 0;
+        }
+        .brand-foot { position: relative; z-index: 1; font-size: .85rem; color: rgba(255,255,255,.7); }
+
+        /* ---------- RIGHT: FORM ---------- */
+        .form-panel { display: grid; place-items: center; padding: 2rem; }
+        .login-card { width: 100%; max-width: 420px; }
+        .mobile-logo { display: none; align-items: center; gap: 10px; font-weight: 800; font-size: 1.4rem; color: var(--primary-dark); margin-bottom: 1.5rem; }
+        .login-card h2 { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 800; letter-spacing: -.02em; margin-bottom: .4rem; }
+        .login-card .sub { color: var(--muted); font-size: .95rem; margin-bottom: 1.8rem; }
+
+        .form-group { margin-bottom: 1.1rem; text-align: left; }
+        .form-group label { display: block; font-size: .8rem; font-weight: 700; color: #44403c; margin-bottom: 6px; }
+        .field { position: relative; }
+        .field > i.lead { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #a8a29e; font-size: .9rem; pointer-events: none; }
+        .field input {
+            width: 100%; padding: 13px 14px 13px 42px; border-radius: 12px;
+            border: 1.5px solid var(--line); background: #fff; color: var(--ink);
+            font-size: .95rem; outline: none; transition: .2s;
+        }
+        .field input::placeholder { color: #c4bfba; }
+        .field input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(249,115,22,.14); }
+        .field input:focus ~ i.lead { color: var(--primary); }
+        .toggle-pass {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: #a8a29e; cursor: pointer; padding: 6px; font-size: .95rem;
+        }
+        .toggle-pass:hover { color: var(--primary-dark); }
+        #authPassword { padding-right: 44px; }
+
+        .error-box {
+            display: none; align-items: center; gap: 10px; background: #fef2f2; color: #b91c1c;
+            border: 1px solid #fecaca; padding: 10px 14px; border-radius: 12px;
+            font-size: .85rem; font-weight: 600; margin-bottom: 1rem;
+        }
+        .error-box.show { display: flex; }
+
+        .btn-submit {
+            width: 100%; padding: 14px; margin-top: .4rem; border: none; border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: #fff; font-weight: 800; font-size: 1rem; cursor: pointer;
+            box-shadow: 0 10px 24px rgba(249,115,22,.35); transition: .2s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(249,115,22,.42); }
+        .btn-submit:disabled { opacity: .75; cursor: wait; transform: none; }
+
+        .toggle-link { margin-top: 1.5rem; text-align: center; font-size: .9rem; color: var(--muted); cursor: pointer; }
+        .toggle-link span { color: var(--primary-dark); font-weight: 700; }
+        .toggle-link:hover span { text-decoration: underline; }
+
+        @media (max-width: 860px) {
+            body { grid-template-columns: 1fr; }
+            .brand-panel { display: none; }
+            .mobile-logo { display: flex; }
+            .form-panel { align-items: start; padding-top: 4.5rem; background: linear-gradient(180deg, #ffedd5 0%, var(--cream) 260px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="lang-switch" role="group" aria-label="Language">
+        <button id="lang-tl" onclick="setLang('tl')">TL</button>
+        <button id="lang-en" onclick="setLang('en')">EN</button>
+    </div>
+
+    <!-- BRAND PANEL -->
+    <aside class="brand-panel">
+        <div class="brand-logo"><div class="mark"><i class="fa-solid fa-utensils"></i></div> KusinaAI</div>
+
+        <div class="brand-copy">
+            <h1 data-i18n="brand_h1"></h1>
+            <p data-i18n="brand_p"></p>
+            <ul class="features">
+                <li><i class="fa-solid fa-book-open"></i> <span data-i18n="feat1"></span></li>
+                <li><i class="fa-solid fa-calendar-days"></i> <span data-i18n="feat2"></span></li>
+                <li><i class="fa-solid fa-robot"></i> <span data-i18n="feat3"></span></li>
+            </ul>
+        </div>
+
+        <div class="brand-foot">&copy; KusinaAI &middot; <span data-i18n="foot"></span></div>
+    </aside>
+
+    <!-- FORM PANEL -->
+    <main class="form-panel">
+        <div class="login-card">
+            <div class="mobile-logo"><i class="fa-solid fa-utensils"></i> KusinaAI</div>
+
+            <h2 id="formTitle"></h2>
+            <p class="sub" id="subTitle"></p>
+
+            <div class="error-box" id="errorBox"><i class="fa-solid fa-circle-exclamation"></i><span id="errorText"></span></div>
+
+            <form id="authForm" onsubmit="handleAuth(event)">
+                <div class="form-group" id="nameGroup" style="display: none;">
+                    <label for="authName" data-i18n="lbl_name"></label>
+                    <div class="field">
+                        <input type="text" id="authName" data-i18n-ph="ph_name">
+                        <i class="fa-regular fa-user lead"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="authEmail" data-i18n="lbl_email"></label>
+                    <div class="field">
+                        <input type="email" id="authEmail" placeholder="juan@gmail.com" required>
+                        <i class="fa-regular fa-envelope lead"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="authPassword" data-i18n="lbl_pass"></label>
+                    <div class="field">
+                        <input type="password" id="authPassword" placeholder="••••••••" required>
+                        <i class="fa-solid fa-lock lead"></i>
+                        <button type="button" class="toggle-pass" onclick="togglePassword()" aria-label="Show password">
+                            <i class="fa-regular fa-eye" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit" id="btnSubmit"></button>
+            </form>
+
+            <p class="toggle-link" onclick="toggleAuthMode()">
+                <span id="toggleText"></span>
+            </p>
+        </div>
+    </main>
+
+    <script>
+        const I18N = {
+            tl: {
+                brand_h1: 'Lutong Pinoy, mas madali na.',
+                brand_p: 'Ang iyong digital cookbook, meal planner, at AI chef sa iisang lugar.',
+                feat1: 'Libu-libong resipeng Pinoy',
+                feat2: 'Kalendaryo ng pagkain sa buong linggo',
+                feat3: 'AI Chef na handang sumagot',
+                foot: 'Para sa bawat pamilyang Pilipino',
+                title_login: 'Mabuhay!', title_signup: 'Sumali na!',
+                sub_login: 'Mag-login para ma-access ang Cookbook, Meal Calendar, at AI Assistant.',
+                sub_signup: 'Gumawa ng bagong account para magamit ang KusinaAI.',
+                lbl_name: 'Buong Pangalan', ph_name: 'Juan Dela Cruz',
+                lbl_email: 'Email Address', lbl_pass: 'Password',
+                btn_login: 'Mag-login', btn_signup: 'Gumawa ng Account', btn_wait: 'Sandali lang...',
+                toggle_to_signup: 'Wala pang account? Mag-Sign Up dito.',
+                toggle_to_login: 'May account na? Mag-login dito.',
+                err_auth: 'May error sa authentication.',
+                err_conn: 'Nagka-error sa pag-konekta sa server.'
+            },
+            en: {
+                brand_h1: 'Filipino cooking, made easier.',
+                brand_p: 'Your digital cookbook, meal planner, and AI chef in one place.',
+                feat1: 'Thousands of Filipino recipes',
+                feat2: 'A meal calendar for the whole week',
+                feat3: 'An AI Chef ready to answer',
+                foot: 'For every Filipino family',
+                title_login: 'Welcome!', title_signup: 'Join us!',
+                sub_login: 'Log in to access the Cookbook, Meal Calendar, and AI Assistant.',
+                sub_signup: 'Create a new account to start using KusinaAI.',
+                lbl_name: 'Full Name', ph_name: 'Juan Dela Cruz',
+                lbl_email: 'Email Address', lbl_pass: 'Password',
+                btn_login: 'Log in', btn_signup: 'Create Account', btn_wait: 'Please wait...',
+                toggle_to_signup: "Don't have an account? Sign up here.",
+                toggle_to_login: 'Already have an account? Log in here.',
+                err_auth: 'Authentication error.',
+                err_conn: 'Could not connect to the server.'
+            }
+        };
+
+        let lang = 'tl';
+        try { lang = localStorage.getItem('kusina_lang') === 'en' ? 'en' : 'tl'; } catch (e) {}
+        let isSignup = false;
+
+        function t(key) { return (I18N[lang] && I18N[lang][key]) || I18N.tl[key] || key; }
+
+        function applyLang() {
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+            document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+            document.getElementById('formTitle').textContent = t(isSignup ? 'title_signup' : 'title_login');
+            document.getElementById('subTitle').textContent = t(isSignup ? 'sub_signup' : 'sub_login');
+            document.getElementById('toggleText').textContent = t(isSignup ? 'toggle_to_login' : 'toggle_to_signup');
+            const btn = document.getElementById('btnSubmit');
+            if (!btn.disabled) btn.textContent = t(isSignup ? 'btn_signup' : 'btn_login');
+            document.getElementById('lang-tl').classList.toggle('active', lang === 'tl');
+            document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+        }
+
+        function setLang(l) {
+            lang = l;
+            try { localStorage.setItem('kusina_lang', l); } catch (e) {}
+            applyLang();
+        }
+
+        function showError(msg) {
+            document.getElementById('errorText').textContent = msg;
+            document.getElementById('errorBox').classList.add('show');
+        }
+        function hideError() {
+            document.getElementById('errorBox').classList.remove('show');
+        }
+
+        function togglePassword() {
+            const input = document.getElementById('authPassword');
+            const icon = document.getElementById('eyeIcon');
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            icon.className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+        }
+
+        function toggleAuthMode() {
+            isSignup = !isSignup;
+            hideError();
+            document.getElementById('nameGroup').style.display = isSignup ? 'block' : 'none';
+            applyLang();
+        }
+
+        async function handleAuth(event) {
+            event.preventDefault();
+            hideError();
+            const btn = document.getElementById('btnSubmit');
+            const endpoint = isSignup ? '/api/signup' : '/api/login';
+            const payload = {
+                name: document.getElementById('authName').value,
+                email: document.getElementById('authEmail').value,
+                password: document.getElementById('authPassword').value
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + t('btn_wait');
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.ok) {
+                    // Kapag matagumpay ang login, i-reload ang page para makapasok sa main dashboard
+                    window.location.reload();
+                    return;
+                }
+                showError(data.error || t('err_auth'));
+            } catch (err) {
+                showError(t('err_conn'));
+            }
+            btn.disabled = false;
+            btn.textContent = t(isSignup ? 'btn_signup' : 'btn_login');
+        }
+
+        applyLang();
+    </script>
+</body>
+</html>
