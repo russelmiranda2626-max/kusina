@@ -476,12 +476,25 @@ def home():
         return render_template('login.html')
 
     boot = {'featured': ALL_RECORDS, 'total': len(ALL_RECORDS), 'categories': CATEGORIES}
-    return render_template('index.html', boot=boot, featured_recipes=ALL_RECORDS, total=len(ALL_RECORDS), categories=CATEGORIES)
+    return render_template('index.html', boot=boot, featured_recipes=ALL_RECORDS, total=len(ALL_RECORDS), categories=CATEGORIES,
+                           user={'name': u.name, 'email': u.email})
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect('/')
+
+@app.route('/account')
+def account():
+    """Account page: profile, about, user manual, at logout button."""
+    u = current_user()
+    if not u:
+        return render_template('login.html')
+    return render_template('account.html', user={
+        'name': u.name,
+        'email': u.email,
+        'joined': u.created_at.isoformat() if u.created_at else '',
+    })
 
 @app.route('/talaan')
 def talaan():
