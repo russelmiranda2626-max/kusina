@@ -102,6 +102,10 @@
         }
         .section-header h2 { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 800; letter-spacing: -.01em; }
         .section-header .count { margin-left: auto; font-size: .85rem; font-weight: 700; color: var(--text-muted); }
+        .week-range {
+            background: var(--primary-soft); color: var(--primary-dark); font-weight: 800; font-size: .78rem;
+            padding: 5px 13px; border-radius: 30px; white-space: nowrap;
+        }
 
         /* ---------- CALENDAR ---------- */
         .calendar-card {
@@ -109,40 +113,57 @@
             border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 3rem;
         }
         .calendar-card > .hint { color: var(--text-muted); font-size: .9rem; margin: -.4rem 0 0 54px; }
+        .calendar-wrap {
+            margin-top: 1.4rem; overflow-x: auto; border: 1px solid var(--border-color);
+            border-radius: 18px; background: #fff;
+        }
         .calendar-grid {
-            display: grid; grid-template-columns: repeat(7, minmax(150px, 1fr));
-            gap: .9rem; margin-top: 1.4rem; overflow-x: auto; padding-bottom: 6px;
+            display: grid; grid-template-columns: 104px repeat(7, minmax(135px, 1fr)); min-width: 1050px;
         }
-        .day-column { background: #fdf9f5; border-radius: var(--radius-lg); padding: .8rem; border: 1px solid var(--border-color); }
-        .day-column.today { background: var(--primary-light); border-color: #fdba74; box-shadow: 0 0 0 3px rgba(249,115,22,.12); }
-        .day-title {
-            font-weight: 800; font-size: .92rem; color: var(--primary-dark); text-align: center;
-            margin-bottom: 10px; display: flex; justify-content: center; align-items: center; gap: 6px;
+        .calendar-grid > * { border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
+        .calendar-grid > :nth-child(8n) { border-right: none; }
+        .calendar-grid > :nth-last-child(-n+8) { border-bottom: none; }
+
+        .cal-corner { background: #fdf9f5; }
+        .cal-dayhead { background: #fdf9f5; text-align: center; padding: 10px 6px 11px; }
+        .cal-dayhead .dn { font-weight: 800; font-size: .78rem; color: var(--primary-dark); text-transform: uppercase; letter-spacing: .05em; }
+        .cal-dayhead .dd { font-family: 'Fraunces', serif; font-size: 1.7rem; font-weight: 800; line-height: 1.15; color: var(--ink); }
+        .cal-dayhead.today { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
+        .cal-dayhead.today .dn, .cal-dayhead.today .dd { color: #fff; }
+        .today-badge {
+            display: inline-block; background: #fff; color: var(--primary-dark); font-size: .58rem; font-weight: 800;
+            padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .05em; margin-top: 2px;
         }
-        .today-badge { background: var(--primary); color: #fff; font-size: .6rem; padding: 2px 7px; border-radius: 20px; text-transform: uppercase; letter-spacing: .04em; }
-        .meal-slot {
-            position: relative; background: #fff; border: 1.5px dashed #d6d3d1; border-radius: 12px;
-            padding: 9px 10px; margin-bottom: 8px; cursor: pointer; transition: .2s;
+        .cal-rowhead {
+            background: #fdf9f5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+            padding: 10px 6px; font-size: .7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; text-align: center;
         }
-        .meal-slot:last-child { margin-bottom: 0; }
-        .meal-slot:hover { border-color: var(--primary); background: var(--primary-light); transform: translateY(-1px); }
-        .meal-slot.filled { border: 1.5px solid #fed7aa; background: linear-gradient(135deg, #fff, #fff7ed); }
-        .meal-slot.filled .slot-value { padding-right: 52px; }
-        .slot-label { font-size: .64rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; gap: 6px; }
-        .slot-label i { color: var(--primary); font-size: .7rem; }
-        .slot-value { font-size: .85rem; font-weight: 700; color: var(--ink); margin-top: 3px; word-break: break-word; }
-        .slot-value.empty { color: #d6d3d1; font-weight: 600; }
-        .slot-del {
-            position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%;
-            border: none; background: #fee2e2; color: #b91c1c; font-size: .7rem; cursor: pointer;
+        .cal-rowhead i { color: var(--primary); font-size: 1.1rem; }
+        .cal-cell {
+            position: relative; padding: 8px; min-height: 104px; cursor: pointer; background: #fff;
+            display: flex; flex-direction: column; transition: background .15s;
+        }
+        .cal-cell.today-col { background: #fffaf3; }
+        .cal-cell:hover { background: var(--primary-light); }
+        .cell-empty {
+            margin: auto; color: #d6d3d1; font-weight: 700; font-size: .8rem; transition: .15s;
+        }
+        .cal-cell:hover .cell-empty { color: var(--primary); }
+        .dish-chip {
+            background: var(--primary-soft); border-left: 3px solid var(--primary); border-radius: 8px; padding: 6px 8px;
+        }
+        .slot-value {
+            font-size: .82rem; font-weight: 700; color: var(--ink); line-height: 1.35; word-break: break-word;
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .slot-actions { margin-top: auto; padding-top: 6px; display: flex; justify-content: flex-end; gap: 6px; }
+        .slot-del, .slot-edit {
+            width: 24px; height: 24px; border-radius: 50%; border: none; font-size: .68rem; cursor: pointer;
             display: grid; place-items: center; transition: .2s;
         }
+        .slot-del { background: #fee2e2; color: #b91c1c; }
         .slot-del:hover { background: #ef4444; color: #fff; transform: scale(1.1); }
-        .slot-edit {
-            position: absolute; top: 6px; right: 32px; width: 22px; height: 22px; border-radius: 50%;
-            border: none; background: #ffedd5; color: #c2410c; font-size: .65rem; cursor: pointer;
-            display: grid; place-items: center; transition: .2s;
-        }
+        .slot-edit { background: #ffedd5; color: #c2410c; }
         .slot-edit:hover { background: var(--primary); color: #fff; transform: scale(1.1); }
         .btn-danger-soft {
             margin-left: auto; background: #fff; color: #b91c1c; border: 1.5px solid #fecaca; padding: .45rem 1rem;
@@ -329,6 +350,7 @@
             .search-box button { padding: .85rem 1.1rem; }
             .calendar-card { padding: 1.2rem; }
             .calendar-card > .hint { margin-left: 0; margin-top: .2rem; }
+            .week-range { display: none; }
             .chat-drawer { right: 12px; left: 12px; width: auto; bottom: 86px; }
             .chat-fab { right: 14px; bottom: 16px; }
         }
@@ -344,6 +366,7 @@
                 <button id="lang-tl" onclick="setLang('tl')">TL</button>
                 <button id="lang-en" onclick="setLang('en')">EN</button>
             </div>
+            <a href="/talaan" class="btn-nav" style="text-decoration:none"><i class="fa-solid fa-book-bookmark"></i> <span data-i18n="nav_index"></span></a>
             <a href="/logout" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i> <span data-i18n="logout"></span></a>
         </div>
     </nav>
@@ -365,6 +388,9 @@
                 <button onclick="quickSearch('Tinola')">Tinola</button>
                 <button onclick="quickSearch('Sisig')">Sisig</button>
                 <button onclick="quickSearch('Pancit')">Pancit</button>
+                <button onclick="quickFilter('category=Gulay')" data-i18n="chip_veg"></button>
+                <button onclick="quickFilter('filter=healthy')" data-i18n="chip_health"></button>
+                <button onclick="quickFilter('filter=lowcal')" data-i18n="chip_lowcal"></button>
             </div>
         </div>
 
@@ -373,10 +399,13 @@
             <div class="section-header">
                 <div class="s-ico"><i class="fa-solid fa-calendar-days"></i></div>
                 <h2 data-i18n="cal_title"></h2>
+                <span class="week-range" id="weekRange"></span>
                 <button class="btn-danger-soft" onclick="clearAllPlan()"><i class="fa-solid fa-trash-can"></i> <span data-i18n="clear_all"></span></button>
             </div>
             <p class="hint" data-i18n="cal_hint"></p>
-            <div class="calendar-grid" id="calendarGrid"></div>
+            <div class="calendar-wrap">
+                <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
         </div>
 
         <!-- RECIPES -->
@@ -479,11 +508,19 @@
         // 0 = Lunes ... 6 = Linggo
         const todayIndex = (new Date().getDay() + 6) % 7;
 
+        // Mga petsa ng kasalukuyang linggo (Lunes hanggang Linggo)
+        function weekDates() {
+            const now = new Date();
+            return days.map((_, i) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - todayIndex + i));
+        }
+
         // ---------------------------------------------------------------
         // LANGUAGE (TL / EN) - buong website
         // ---------------------------------------------------------------
         const I18N = {
             tl: {
+                chip_veg: 'Gulay', chip_health: 'Pang-Health', chip_lowcal: 'Low Calorie',
+                nav_index: 'Talaan',
                 nav_translator: 'Tagasalin', logout: 'Logout',
                 hero_title: 'Ano ang gusto mong lutuin ngayon?',
                 hero_sub: 'Maghanap ng higit sa libu-libong masasarap na resipeng Pinoy',
@@ -520,6 +557,8 @@
                 err_conn: 'Pasensya na, may problema sa koneksyon.'
             },
             en: {
+                chip_veg: 'Vegetables', chip_health: 'Healthy', chip_lowcal: 'Low Calorie',
+                nav_index: 'Meal History',
                 nav_translator: 'Translator', logout: 'Logout',
                 hero_title: 'What do you want to cook today?',
                 hero_sub: 'Search thousands of delicious Filipino recipes',
@@ -821,25 +860,38 @@
             renderCalendar();
         }
 
+        // Tunay na kalendaryo: mga araw sa taas (may petsa), mga oras ng pagkain sa gilid
         function renderCalendar() {
-            const grid = document.getElementById('calendarGrid');
-            grid.innerHTML = days.map((day, di) => `
-                <div class="day-column ${di === todayIndex ? 'today' : ''}">
-                    <div class="day-title">${esc(dayLabel(day))} ${di === todayIndex ? '<span class="today-badge">' + esc(t('today')) + '</span>' : ''}</div>
-                    ${meals.map(meal => {
-                        const raw = (planData[day] && planData[day][meal]) ? planData[day][meal] : '-';
-                        const filled = raw !== '-';
-                        return `
-                            <div class="meal-slot ${filled ? 'filled' : ''}" onclick="slotClick('${day}', '${meal}')">
-                                ${filled ? `<button class="slot-del" title="${esc(t('del'))}" aria-label="${esc(t('del'))}" onclick="event.stopPropagation(); deleteSlot('${day}', '${meal}')"><i class="fa-solid fa-xmark"></i></button>
-                                <button class="slot-edit" aria-label="Edit" onclick="event.stopPropagation(); openMealSelector('${day}', '${meal}')"><i class="fa-solid fa-pen"></i></button>` : ''}
-                                <div class="slot-label"><i class="fa-solid ${mealIcons[meal]}"></i> ${esc(mealLabel(meal))}</div>
-                                <div class="slot-value ${filled ? '' : 'empty'}" ${filled ? `data-raw="${esc(raw)}"` : ''}>${filled ? esc(raw) : esc(t('add'))}</div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            `).join('');
+            const dates = weekDates();
+            const fmt = (dt, o) => dt.toLocaleDateString(lang === 'en' ? 'en-US' : 'fil-PH', o);
+            const wr = document.getElementById('weekRange');
+            if (wr) wr.textContent = fmt(dates[0], { month: 'short', day: 'numeric' }) + ' – ' + fmt(dates[6], { month: 'short', day: 'numeric', year: 'numeric' });
+
+            let html = '<div class="cal-corner"></div>';
+            html += days.map((day, di) => `
+                <div class="cal-dayhead ${di === todayIndex ? 'today' : ''}">
+                    <div class="dn">${esc(dayLabel(day))}</div>
+                    <div class="dd">${dates[di].getDate()}</div>
+                    ${di === todayIndex ? '<span class="today-badge">' + esc(t('today')) + '</span>' : ''}
+                </div>`).join('');
+
+            meals.forEach(meal => {
+                html += `<div class="cal-rowhead"><i class="fa-solid ${mealIcons[meal]}"></i><span>${esc(mealLabel(meal))}</span></div>`;
+                days.forEach((day, di) => {
+                    const raw = (planData[day] && planData[day][meal]) ? planData[day][meal] : '-';
+                    const filled = raw !== '-';
+                    html += `
+                        <div class="cal-cell ${di === todayIndex ? 'today-col' : ''}" onclick="slotClick('${day}', '${meal}')">
+                            ${filled ? `
+                                <div class="dish-chip"><div class="slot-value" data-raw="${esc(raw)}" title="${esc(raw)}">${esc(raw)}</div></div>
+                                <div class="slot-actions">
+                                    <button class="slot-edit" aria-label="Edit" onclick="event.stopPropagation(); openMealSelector('${day}', '${meal}')"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="slot-del" title="${esc(t('del'))}" aria-label="${esc(t('del'))}" onclick="event.stopPropagation(); deleteSlot('${day}', '${meal}')"><i class="fa-solid fa-xmark"></i></button>
+                                </div>` : `<span class="cell-empty">${esc(t('add'))}</span>`}
+                        </div>`;
+                });
+            });
+            document.getElementById('calendarGrid').innerHTML = html;
             translateCalendar();
         }
 
@@ -941,6 +993,14 @@
         function quickSearch(term) {
             document.getElementById('searchInput').value = term;
             searchRecipes();
+            document.getElementById('recipeGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function quickFilter(qs) {
+            document.getElementById('searchInput').value = '';
+            const res = await fetch('/api/recipes?' + qs);
+            const data = await res.json();
+            renderRecipes(data.recipes);
             document.getElementById('recipeGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
